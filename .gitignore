@@ -1,0 +1,10 @@
+#From script
+imgs/
+
+#Matlab and simulink
+*.asv
+*.slxc
+slprj/
+*.png
+*.mat
+*.xml
