@@ -26,36 +26,36 @@ end
 
 %% Comptuing M matrix
 
-theta = sym('theta', [2 1], 'real');       
+theta = sym('theta', [2 1], 'real');
+sym_inertia = sym('sym_inertia', [3 3]);
 R01 = rotz(theta(1));
-R12 = roty(pi/2)*rotz(theta(2));
+R12 = rotx(theta(2));
 
-x2_cross_z1 = skew(R12*X)*Z;
-x2_cross_y1 = skew(R12*X)*Y;
-z1_dot_x2 = dot(R12'*Z, X);
-
-M1 = [inertias(3,3,1) + m(1)*(rc(1)^2), 0;
+M1 = [inertias(3,3,1) + (m(1)*(l(1)^2)/4), 0;
       0                               , 0];
 
-M2A = m(2)*(l(1)^2) + (Z'*R12)*(inertias(:, :, 2))*(R12'*Z) + m(2)*(rc(2)^2)*(1-(cos(theta(2)^2)));
-M2C = -m(2)*rc(2)*l(1)*cos(theta(2));
+M2A = (m(2)*(l(1)^2)) + ((Z'*R12)*(inertias(:, :, 2))*(R12'*Z)) + (m(2)*(l(2)^2)*(sin(theta(2))^2));
+M2C = -m(2)*l(2)*l(1)*cos(theta(2))/2;
 M2B=M2C;
-M2D = inertias(3,3,2) + m(2)*(rc(2)^2);
+M2D = inertias(1,1,2) + (m(2)*(l(2)^2)/4);
 M2 = [M2A, M2B; M2C M2D];
 
 M = M1 + M2;
-M = simplify(M, 400);
+get_M = matlabFunction(M);
+inv_M = inv(M);
+get_inv_M = matlabFunction(inv_M);
 
 %% Computing C matrix
 theta_dot = sym('theta_dot', [2 1], 'real');
-MD = [diff(M, theta(1))*theta_dot, diff(M, theta(2))*theta_dot];
+MD = sym(zeros(n_links, n_links));
+for i=1:n_links
+    MD(:, i) = diff(M, theta(i))*theta_dot;
+end
 C = MD - (0.5*MD');
-C = simplify(C, 100);
 get_C = matlabFunction(C);
 
 %% Computing G matrix
-g = -1*(m(1)*dot(-GRAVITY*Z, R01*rc(1)*X) + m(2)*dot(-GRAVITY*Z, R01*(l(1)*X + R12*(rc(2)*-X))));
-G = [diff(g, theta(1)), diff(g, theta(2))]';
+G = [0; -0.5*m(2)*GRAVITY*l(2)*sin(theta(2))];
 get_G = matlabFunction(G);
 
 %% Computing motor joint dynamics
@@ -68,41 +68,63 @@ armature_inertia = 2.86e-7;
 kr = 70;
 jt = joint_inertias + (kr^2)*armature_inertia;
 
-%Model for motor with circuit dynamics
-Am = [(kr*la*jt)/ra 0; 0 0];
-inv_Am = pinv(Am);
-Cm = [(km^2*kr/ra) 0; 0 0];
-Vm = [km*kr/ra 0; 0 0];
+Mm = [jt 0; 0 0];
+M_hat = M+Mm;
+get_M_hat = matlabFunction(M_hat);
+inv_M_hat = inv(M_hat);
+get_inv_M_hat = matlabFunction(inv_M_hat);
 
-%Model for motor without circuit dynamics
-alpham = ra*jt/(km^2);
-Cm_hat = [kr*jt/alpham 0; 0 0];
-Vm_hat = [(kr*jt)/(alpham*km) 0; 0 0];
+Cm = [km*km*kr*kr/ra 0;0 0];
+Vm = [kr*km/ra 0; 0 0];
 
-Mm = [(joint_inertias + (kr^2)*armature_inertia) 0; 0 0];
-M = M+Mm;
-get_M = matlabFunction(M);
-det_M = simplify(det(M), 100);
-inv_M = (1/det_M)*[M(2,2) -M(1,2);
-                  -M(2,1)  M(1,1)];
-get_inv_M = matlabFunction(inv_M);
-Cm_hat = [km*kr 0;0 0];
-
-%% Simulating
-theta0 = zeros(n_links, 1);
-theta0(2) = pi/2;
-theta_dot0 = zeros(n_links, 1);
-theta_ddot0 = zeros(n_links, 1);
-
-out = sim('simulation.slx', 'StartTime', '0', 'StopTime', '20' );
-
+%% Comparing simulation with experimental data
 exp_data = load('exp_data.mat');
+
+theta0 = zeros(n_links, 1);
+theta_dot0 = zeros(n_links, 1);
+out = sim('simulation.slx', 'StartTime', '0', 'StopTime', '20');
+
 figure;
 grid;
 hold on;
-plot(out.approx_theta);
+plot(out.mani_theta, 'LineWidth', 2.0);
 hold on;
-plot(exp_data.data02(:, 1), deg2rad(exp_data.data02(:, 2)), exp_data.data02(:, 1), deg2rad(exp_data.data02(:, 3)));
-legend('\theta_1^{sim}', '\theta_2^{sim}', '\theta_1^{exp}', '\theta_2^{exp}');
+plot(exp_data.data01(:, 1), deg2rad(exp_data.data01(:, 2)), 'LineWidth', 2.0)
+hold on;
+plot(exp_data.data01(:, 1), deg2rad(exp_data.data01(:, 3)), 'LineWidth', 2.0);
 xlabel('Time(seconds)');
 ylabel('rad');
+title('Estado inicial no equilíbrio instável (\theta=0)');
+saveas(gcf, 'mani_theta_0.png');
+hold off;
+
+theta0(2) = pi/2;
+out = sim('simulation.slx', 'StartTime', '0', 'StopTime', '20');
+
+figure;
+grid;
+hold on;
+plot(out.mani_theta, 'LineWidth', 2.0);
+hold on;
+plot(exp_data.data02(:, 1), deg2rad(exp_data.data02(:, 2)), 'LineWidth', 2.0)
+hold on;
+plot(exp_data.data02(:, 1), deg2rad(exp_data.data02(:, 3)), 'LineWidth', 2.0);
+xlabel('Time(seconds)');
+ylabel('rad');
+title('Estado inicial com \theta_2 = 90 graus');
+saveas(gcf, 'mani_theta_90.png');
+hold off;
+
+figure;
+grid;
+hold on;
+plot(out.motor_theta, 'LineWidth', 2.0);
+hold on;
+plot(exp_data.data03(:, 1), deg2rad(exp_data.data03(:, 2)), 'LineWidth', 2.0)
+hold on;
+plot(exp_data.data03(:, 1), deg2rad(exp_data.data03(:, 3)), 'LineWidth', 2.0);
+xlabel('Time(seconds)');
+ylabel('rad');
+title('Sistema com motor acoplado no estado inicial com \theta_2 = 90 graus');
+saveas(gcf, 'motor_theta_90.png');
+hold off;
