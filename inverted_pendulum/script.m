@@ -27,7 +27,6 @@ end
 %% Comptuing M matrix
 
 theta = sym('theta', [2 1], 'real');
-sym_inertia = sym('sym_inertia', [3 3]);
 R01 = rotz(theta(1));
 R12 = rotx(theta(2));
 
