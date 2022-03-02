@@ -94,6 +94,7 @@ plot(exp_data.data01(:, 1), deg2rad(exp_data.data01(:, 3)), 'LineWidth', 2.0);
 xlabel('Time(seconds)');
 ylabel('rad');
 title('Estado inicial no equilíbrio instável (\theta=0)');
+legend('\theta_1^{sim}', '\theta_2^{sim}', '\theta_1^{exp}', '\theta_2^{exp}');
 saveas(gcf, 'mani_theta_0.png');
 hold off;
 
@@ -111,6 +112,7 @@ plot(exp_data.data02(:, 1), deg2rad(exp_data.data02(:, 3)), 'LineWidth', 2.0);
 xlabel('Time(seconds)');
 ylabel('rad');
 title('Estado inicial com \theta_2 = 90 graus');
+legend('\theta_1^{sim}', '\theta_2^{sim}', '\theta_1^{exp}', '\theta_2^{exp}');
 saveas(gcf, 'mani_theta_90.png');
 hold off;
 
@@ -125,5 +127,6 @@ plot(exp_data.data03(:, 1), deg2rad(exp_data.data03(:, 3)), 'LineWidth', 2.0);
 xlabel('Time(seconds)');
 ylabel('rad');
 title('Sistema com motor acoplado no estado inicial com \theta_2 = 90 graus');
+legend('\theta_1^{sim}', '\theta_2^{sim}', '\theta_1^{exp}', '\theta_2^{exp}');
 saveas(gcf, 'motor_theta_90.png');
 hold off;
