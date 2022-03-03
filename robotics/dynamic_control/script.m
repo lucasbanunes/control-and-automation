@@ -66,40 +66,40 @@ rlocus(Gm);
 Kp = diag([5.67 5.67]);  %Computed by the previous rlocus
 Ka = M_bar;
 ctrl = 'P-PI';
-for test=1:n_tests
-    dirname = sprintf('test%i', test);
-    if not(isfolder(dirname))
-        mkdir(dirname);
-    end
-    omega = omegas(:,test);   %Needed for simulink simulation
-    if test == 3
-        stoptime=sim_time/2;
-    else
-        stoptime=sim_time;
-    end
-    out = sim('ppi.slx', 'StartTime', '0', 'StopTime', num2str(stoptime));
-    plot_theta(out, dirname, ctrl);
-    plot_theta_dot(out, dirname, ctrl);
-    plot_theta_ddot(out, dirname, ctrl);
-end
+% for test=1:n_tests
+%     dirname = sprintf('test%i', test);
+%     if not(isfolder(dirname))
+%         mkdir(dirname);
+%     end
+%     omega = omegas(:,test);   %Needed for simulink simulation
+%     if test == 3
+%         stoptime=sim_time/2;
+%     else
+%         stoptime=sim_time;
+%     end
+%     out = sim('ppi.slx', 'StartTime', '0', 'StopTime', num2str(stoptime));
+%     plot_theta(out, dirname, ctrl);
+%     plot_theta_dot(out, dirname, ctrl);
+%     plot_theta_ddot(out, dirname, ctrl);
+% end
 
 %% Computed torque
-ctrl = 'Torque computado';
-computed_kp = omega_n^2;
-computed_kd = omega_n*ksi*2;
-for test=1:n_tests
-    dirname = sprintf('test%i', test);
-    if not(isfolder(dirname))
-        mkdir(dirname);
-    end
-    omega = omegas(:,test);   %Needed for simulink simulation
-    if test == 3
-        stoptime=sim_time/2;
-    else
-        stoptime=sim_time;
-    end
-    out = sim('computed_torque.slx', 'StartTime', '0', 'StopTime', num2str(stoptime));
-    plot_theta(out, dirname, ctrl);
-    plot_theta_dot(out, dirname, ctrl);
-    plot_theta_ddot(out, dirname, ctrl);
-end
+% ctrl = 'Torque computado';
+% computed_kp = omega_n^2;
+% computed_kd = omega_n*ksi*2;
+% for test=1:n_tests
+%     dirname = sprintf('test%i', test);
+%     if not(isfolder(dirname))
+%         mkdir(dirname);
+%     end
+%     omega = omegas(:,test);   %Needed for simulink simulation
+%     if test == 3
+%         stoptime=sim_time/2;
+%     else
+%         stoptime=sim_time;
+%     end
+%     out = sim('computed_torque.slx', 'StartTime', '0', 'StopTime', num2str(stoptime));
+%     plot_theta(out, dirname, ctrl);
+%     plot_theta_dot(out, dirname, ctrl);
+%     plot_theta_ddot(out, dirname, ctrl);
+% end
