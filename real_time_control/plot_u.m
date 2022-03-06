@@ -1,18 +1,13 @@
-function plot_u(out)
+function plot_u(out, save_file)
     figure;
-    plot(out.u)
-    hold on
-    plot(out.u1)
-    hold on
-    plot(out.u2)
-    hold on
-    plot(out.u3)
-    hold on
-    plot(out.u4)
-    xlabel('t')
-    ylabel('u(t)')
-    legend('LQR_C', 'LQR_V', 'MPC', 'MPC+Kalman', 'Non optimal' );
-    title("Control signal");
     grid;
-    saveas(gcf,'imgs/plot_u.png')
+    hold on;
+    plot(out.u)
+    xlabel('Time(seconds)')
+    ylabel('u(t)')
+    title("Control signal");
+    hold off;
+    if save_file
+        saveas(gcf,'imgs/u_plot.png');
+    end
 end

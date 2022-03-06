@@ -1,18 +1,13 @@
-function plot_y(out)
+function plot_y(out, save_file)
     figure;
-    plot(out.y)
-    hold on
-    plot(out.y1)
-    hold on 
-    plot(out.y2)
-    hold on 
-    plot(out.y3)
-    hold on 
-    plot(out.y4)
-    xlabel('t')
-    ylabel('u(t)')
-    legend('LQR_C', 'LQR_V', 'MPC', 'MPC+Kalman', 'Non optimal' );
-    title("Response");
     grid;
-    saveas(gcf,'imgs/plot_y.png')
+    hold on;
+    plot(out.y)
+    xlabel('Time(seconds)')
+    ylabel('y(t)')
+    title("Output signal");
+    hold off;
+    if save_file
+        saveas(gcf,'imgs/y_plot.png');
+    end
 end
