@@ -46,73 +46,73 @@ d2=1;
 %tunning
 e1_tau = [1 0 0]';
 
-% out = sim('trab6.slx' , 'StartTime' , '0' , 'StopTime', '200');
-% 
-% %Resposta do sistema
-% figure;
-% hold on;
-% grid;
-% plot(out.yr, 'LineWidth', 2.0);
-% plot(out.y,'--', 'LineWidth', 2.0);
-% legend('y', 'y_r');
-% xlabel('Tempo (segundos)');
-% ylabel('Sinal');
-% title('Resposta do sistema');
-% filepath = sprintf('%s\\resposta_do_sistema.png', dirname);
-% saveas(gcf, filepath);
-% hold off;
-% 
-% %Entrada do sistema
-% figure;
-% hold on;
-% grid;
-% plot(out.u);
-% legend('u');
-% xlabel('Tempo (segundos)');
-% ylabel('Sinal');
-% title('Entrada do sistema');
-% filepath = sprintf('%s\\entrada_do_sistema.png', dirname);
-% saveas(gcf, filepath)
-% hold off;
-% 
-% %Ganhos de controle
-% figure;
-% hold on;
-% grid;
-% plot(out.theta_hat);
-% hold on
-% plot(out.rho_hat);
-% legend('$\hat{\theta}_1$', '$\hat{\theta}_2$', '$\hat{\theta}_3$','$\hat{\rho}$', 'interpreter','latex');
-% xlabel('Tempo (segundos)');
-% ylabel('Sinal');
-% title('Parâmetros');
-% filepath = sprintf('%s\\theta_hat.png', dirname);
-% saveas(gcf, filepath)
-% hold off;
-% 
-% 
-% %Erro
-% figure;
-% hold on;
-% grid;
-% plot(out.z1);
-% legend('e');
-% xlabel('Tempo (segundos)');
-% ylabel('Sinal');
-% title('Erro');
-% filepath = sprintf('%s\\z1.png', dirname);
-% saveas(gcf, filepath)
-% hold off;
-% 
-% 
-% %Módulo do ganho
-% figure;
-% hold on;
-% grid;
-% plot(out.norm_theta_hat);
-% xlabel('Tempo (segundos)');
-% ylabel('Sinal');
-% title('Norma dos parâmetros');
-% filepath = sprintf('%s\\norm_theta_hat.png', dirname);
-% saveas(gcf, filepath)
-% hold off;
+out = sim('simulation.slx' , 'StartTime' , '0' , 'StopTime', '100');
+
+%Resposta do sistema
+figure;
+hold on;
+grid;
+plot(out.yr, 'LineWidth', 2.0);
+plot(out.y,'--', 'LineWidth', 2.0);
+legend('y', 'y_r');
+xlabel('Tempo (segundos)');
+ylabel('Sinal');
+title('Resposta do sistema');
+filepath = sprintf('%s\\resposta_do_sistema.png', dirname);
+saveas(gcf, filepath);
+hold off;
+
+%Entrada do sistema
+figure;
+hold on;
+grid;
+plot(out.u);
+legend('u');
+xlabel('Tempo (segundos)');
+ylabel('Sinal');
+title('Entrada do sistema');
+filepath = sprintf('%s\\entrada_do_sistema.png', dirname);
+saveas(gcf, filepath)
+hold off;
+
+%Ganhos de controle
+figure;
+hold on;
+grid;
+plot(out.theta_hat);
+hold on
+plot(out.rho_hat);
+legend('$\hat{\theta}_1$', '$\hat{\theta}_2$', '$\hat{\theta}_3$','$\hat{\rho}$', 'interpreter','latex');
+xlabel('Tempo (segundos)');
+ylabel('Sinal');
+title('Parâmetros');
+filepath = sprintf('%s\\theta_hat.png', dirname);
+saveas(gcf, filepath)
+hold off;
+
+
+%Erro
+figure;
+hold on;
+grid;
+plot(out.z1);
+legend('e');
+xlabel('Tempo (segundos)');
+ylabel('Sinal');
+title('Erro');
+filepath = sprintf('%s\\z1.png', dirname);
+saveas(gcf, filepath)
+hold off;
+
+
+%Módulo do ganho
+figure;
+hold on;
+grid;
+plot(out.norm_theta_hat);
+xlabel('Tempo (segundos)');
+ylabel('Sinal');
+title('Norma dos parâmetros');
+filepath = sprintf('%s\\norm_theta_hat.png', dirname);
+saveas(gcf, filepath)
+hold off;
