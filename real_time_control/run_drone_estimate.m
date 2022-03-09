@@ -48,9 +48,9 @@ x0 = zeros(n, 1);
 % Observer parameters;
 x0_observer = zeros(n, 1);
 x0_observer(1:3, 1) = 0.1;
-L = lqed(F, G, H, Q, R, h);
+% L = lqed(F, G, H, Q, R, h);
 % L = dlqe(F_discrete, G_discrete, H_discrete, Q_discrete, R_discrete);
-% L = lqe(F, G, H, Q, R);
+L = lqe(F, G, H, Q, R);
 
 % Reference
 am = zeros(3,1);
@@ -64,22 +64,20 @@ sat_max = (10000);
 
 % Pertubations
 noise_seed = 42;
+rng(noise_seed);
 wind_initial_value = 0;
 wind_final_value = 0;
 wind_steptime = 5;
 
-% out = sim('simulations/lqr_control_kalman_observer.slx', 'FixedStep', num2str(h_plant));
-% 
-% save_file=false;
-% dirname = 'imgs';
-% if not(isfolder(dirname)) && save_file
-%     mkdir(dirname);
-% end
-% 
-% plot_u(out, save_file);
-% plot_y(out, save_file);
-% plot_cost(out, save_file);
-% plot_total_cost(out, save_file);
-% plot_x(out, save_file);
-% plot_xhat(out, save_file);
-% plot_error(reference, out, save_file);
+simulation = 'drone_position_estimate_continuous.slx';
+out = sim(sprintf('simulations/%s', simulation), 'FixedStep', num2str(h_plant));
+
+save_file=true;
+dirname = sprintf('%s_imgs', simulation);
+if not(isfolder(dirname)) && save_file
+    mkdir(dirname);
+end
+
+plot_xt(out, save_file);
+plot_deltax(out, save_file);
+plot_real_x(out, save_file);
