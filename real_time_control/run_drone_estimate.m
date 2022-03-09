@@ -3,7 +3,7 @@ close all;
 % global N Phi Gamma Q1 Q2 Q0 Q12 h
 
 % Steps
-h = 1; % Sample step
+h = 0.1; % Sample step
 h_plant = (1e-3); % Integration step
 
 % Continuous plant state space (double integrator)
@@ -48,8 +48,9 @@ x0 = zeros(n, 1);
 % Observer parameters;
 x0_observer = zeros(n, 1);
 x0_observer(1:3, 1) = 0.1;
+L = lqed(F, G, H, Q, R, h);
 % L = dlqe(F_discrete, G_discrete, H_discrete, Q_discrete, R_discrete);
-L = lqe(F, G, H, Q, R);
+% L = lqe(F, G, H, Q, R);
 
 % Reference
 am = zeros(3,1);
