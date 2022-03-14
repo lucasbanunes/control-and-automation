@@ -43,9 +43,8 @@ Q12 = 0;
 
 % Observer parameters;
 x0_observer = zeros(2, 1);
-x0_observer(1) = 1;
-x0_observer(2) = 0;
-observer_eig = [0.03; 0.01];
+% observer_eig = [0.03; 0.01];
+L = lqe(A, G_discrete, C_discrete, Q_discrete, R_discrete);
 
 % Optimization horizon
 N = 20;
@@ -63,7 +62,7 @@ wind_initial_value = 0;
 wind_final_value = 0;
 wind_steptime = 5;
 
-out = sim('simulations/lqr_control_variable_kalman_observer.slx', 'FixedStep', num2str(h_plant));
+out = sim('simulations/lqr_control_kalman_observer.slx', 'FixedStep', num2str(h_plant));
 
 save_file=false;
 dirname = 'imgs';
