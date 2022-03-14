@@ -59,7 +59,7 @@ g = [0;0;-9.98];
 
 % Simulating
 simulation = 'drone_position_estimate_continuous.slx';
-out = sim(sprintf('simulations/%s', simulation), 'FixedStep', num2str(h_plant));
+out = sim(sprintf('simulations/%s', simulation), 'FixedStep', num2str(h_plant), 'StartTime', '0', 'StopTime', '100');
 
 save_file=true;
 dirname = sprintf('imgs/%s', strrep(simulation, '.slx', ''));

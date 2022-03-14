@@ -1,13 +1,13 @@
 function plot_real_x(out, save_file, dirname)
     figure;
     subplot(2,1,1);
-    plot(out.pt-out.deltap);
+    plot(out.realp);
     title('Position');
     ylabel('p');
     legend('$p_1$', '$p_2$', '$p_3$', 'interpreter', 'latex');
     grid;
     subplot(2,1,2);
-    plot(out.vt-out.deltav);
+    plot(out.realv);
     title('Velocity');
     legend('$v_1$', '$\delta v_2$', '$v_3$', 'interpreter', 'latex');
     xlabel('Time(seconds)');
