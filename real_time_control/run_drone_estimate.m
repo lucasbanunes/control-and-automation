@@ -45,9 +45,9 @@ R_discrete = R/h;
 % Observer parameters;
 x0_observer = zeros(n, 1);
 % x0_observer(1:3, 1) = 0.1;
-% L = lqed(F, G, H, Q, R, h);
+L = lqed(F, G, H, Q, R, h);
 % L = dlqe(F_discrete, G_discrete, H_discrete, Q_discrete, R_discrete);
-L = lqe(F, G, H, Q, R);
+% L = lqe(F, G, H, Q, R);
 
 % Drone parameters
 p0=zeros(3,1);
@@ -58,7 +58,7 @@ at = [1;0;-9.98];
 g = [0;0;-9.98];
 
 % Simulating
-simulation = 'drone_position_estimate_continuous.slx';
+simulation = 'drone_position_estimate_discrete.slx';
 out = sim(sprintf('simulations/%s', simulation), 'FixedStep', num2str(h_plant), 'StartTime', '0', 'StopTime', '100');
 
 save_file=true;

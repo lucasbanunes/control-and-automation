@@ -4,7 +4,7 @@ function plot_real_error(out, save_file, dirname)
     figure;
     plot(real_error);
     hold on;
-    title('Position real error');
+    title('Position real error $e_p = (p_t-\delta_p) - p_{ideal}$', 'interpreter', 'latex');
     ylabel('$e_p$', 'interpreter', 'latex');
     legend('$e_{p_1}$', '$e_{p_2}$', '$e_{p_3}$', 'interpreter', 'latex');
     grid;
