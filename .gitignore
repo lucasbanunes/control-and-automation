@@ -8,3 +8,9 @@ slprj/
 *.png
 *.mat
 *.xml
+
+# Data
+*.csv
+
+# Python
+**/__pycache__/
