@@ -5,7 +5,7 @@ from scipy.integrate import solve_ivp
 from datetime import datetime
 
 gravity = 10
-drone_mass = 1
+drone_mass = 0.01
 time_range = (0,10)     # Seconds
 phi0 = 0
 dphi0 = 0
@@ -32,20 +32,31 @@ A = np.array([
 ], dtype=np.float64)
 
 controler_kwargs = dict(
-    ref_x = lambda t: 1,
-    ref_y = lambda t: 1,
-    ref_z = lambda t: 1,
-    ref_dz = lambda t: 0,
-    ref_ddz = lambda t: 0,
-    ref_psi = lambda t: 0,
-    kpz = 1,
-    kdz= 1,
+    ref_x = lambda t: 1.,
+    ref_y = lambda t: 1.,
+    ref_z = lambda t: 1.,
+    ref_dz = lambda t: 0.,
+    ref_ddz = lambda t: 0.,
+    ref_psi = lambda t: 0.,
+    ref_dpsi = lambda t: 0.,
+    ref_ddpsi = lambda t: 0.,
+    kp_z = 1,
+    kd_z= 1,
+    kp_phi = 2,
+    kd_phi = 2,
+    kp_theta = 2,
+    kd_theta = 2,
+    kp_psi = 2,
+    kd_psi = 2,
     g = gravity,
     mass = drone_mass,
     A = A,
     mx=1,
     my=1,
-    mz=1
+    mz=1,
+    jx=1,
+    jy=1,
+    jz=1
 )
 
 drone_kwargs = dict(

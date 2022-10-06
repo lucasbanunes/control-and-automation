@@ -15,7 +15,8 @@ class DroneController():
         ref_z: Callable[[Number],Number], ref_dz: Callable[[Number],Number], ref_ddz: Callable[[Number],Number], 
         ref_psi: Callable[[Number],Number], ref_dpsi: Callable[[Number],Number], ref_ddpsi: Callable[[Number],Number], 
         kp_z: Number, kd_z: Number, kp_phi:Number, kd_phi:Number, kp_theta:Number, kd_theta:Number, kp_psi:Number, kd_psi:Number,
-        A: npt.ArrayLike, mx: Number, my: Number, mz: Number, g: Number, mass: Number):
+        A: npt.ArrayLike, mx: Number, my: Number, mz: Number, jx: Number, jy: Number, jz: Number,
+        g: Number, mass: Number):
         """
         Parameters
         ------------
@@ -98,11 +99,17 @@ class DroneController():
         A = np.array(A, dtype=np.float64)
         self.Ainv = np.linalg.inv(A)
         is_numeric(mx)
-        self.mx = mx
+        self.mx = np.float64(mx)
         is_numeric(my)
-        self.my = my
+        self.my = np.float64(my)
         is_numeric(mz)
-        self.mz = mz
+        self.mz = np.float64(mz)
+        is_numeric(jx)
+        self.jx = np.float64(jx)
+        is_numeric(jy)
+        self.jy = np.float64(jy)
+        is_numeric(jz)
+        self.jz = np.float64(jz)
 
         self.ref_phi = ref_phi
         self.ref_theta = ref_theta
@@ -137,9 +144,9 @@ class DroneController():
         e_phi = ref_phi-phi
         de_phi = ref_dphi-dphi
 
-        ref_theta = self.ref_theta(ref_x, ref_y, ref_psi, f, self.mass)
-        ref_dtheta = self.ref_dtheta(ref_x, ref_y, ref_psi, f, self.mass)
-        ref_ddtheta = self.ref_ddtheta(ref_x, ref_y, ref_psi, f, self.mass)
+        ref_theta = self.ref_theta(ref_x, ref_y, ref_psi, ref_phi, f, self.mass)
+        ref_dtheta = self.ref_dtheta(ref_x, ref_y, ref_psi, f, ref_phi, self.mass)
+        ref_ddtheta = self.ref_ddtheta(ref_x, ref_y, ref_psi, f, ref_phi, self.mass)
         e_theta = ref_theta-theta
         de_theta = ref_dtheta-dtheta
 
