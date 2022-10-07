@@ -1,7 +1,21 @@
+from abc import ABC, abstractmethod
 from .models import LinearStateSpaceSystem
+from .utils import is_callable
 import numpy as np
+import numpy.typing as npt
+from numbers import Number
+from typing import Callable, Any
 
-class PIController(LinearStateSpaceSystem):
+class Controller(ABC):
+    @abstractmethod
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def output(self):
+        pass
+
+class PI(LinearStateSpaceSystem,Controller):
 
     def __init__(self, kp, ki):
         self.kp=kp
@@ -12,3 +26,24 @@ class PIController(LinearStateSpaceSystem):
                          D=np.array([[self.kp]]),
                          x0=np.array([[0]]))
 
+class FeedbackbLinearization(Controller):
+
+    def __init__(self, ref: Callable[[np.float64, np.ndarray[np.float64], Any], np.ndarray[np.float64]], 
+        gains: npt.ArrayLike, 
+        linearize: Callable[[np.float64, np.ndarray[np.float64], np.ndarray[np.float64], Any], np.ndarray[np.float64]], **kwargs):
+        self.__dict__ = kwargs
+        self.kwargs = kwargs
+        is_callable(ref)
+        self.ref = ref
+        self.gains = np.array(gains)
+        is_callable(linearize)
+        self.linearize = linearize
+    
+    def output(self, t: Number, states: npt.ArrayLike) -> np.ndarray[np.float64]:
+        states = np.array(states, dtype=np.float64)
+        t=np.float64(t)
+        ref = self.ref(t, states, **self.kwargs)
+        error = ref[:-1]-states
+        u = np.dot(self.gains, error) + ref[-1]
+        y = self.linearize(t, u, states, **self.kwargs)
+        return y
