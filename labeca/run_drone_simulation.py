@@ -32,48 +32,43 @@ A = np.array([
 ], dtype=np.float64)
 
 controler_kwargs = dict(
-    ref_x = lambda t: 1.,
-    ref_y = lambda t: 1.,
-    ref_z = lambda t: 1.,
-    ref_dz = lambda t: 0.,
-    ref_ddz = lambda t: 0.,
-    ref_psi = lambda t: 0.,
-    ref_dpsi = lambda t: 0.,
-    ref_ddpsi = lambda t: 0.,
+    ref_x = lambda t: t**0,
+    ref_y = lambda t: t**0,
+    ref_z = lambda t: t**0,
+    ref_dz = lambda t: t-t,
+    ref_ddz = lambda t: t-t,
+    ref_psi = lambda t: t-t,
+    ref_dpsi = lambda t: t-t,
+    ref_ddpsi = lambda t: t-t,
     kp_z = 1,
     kd_z= 1,
-    kp_phi = 2,
+    kp_phi = 1,
     kd_phi = 2,
-    kp_theta = 2,
-    kd_theta = 2,
-    kp_psi = 2,
-    kd_psi = 2,
+    kp_theta = 1,
+    kd_theta = 1,
+    kp_psi = 1,
+    kd_psi = 1,
     g = gravity,
     mass = drone_mass,
     A = A,
-    mx=1,
-    my=1,
-    mz=1,
     jx=1,
     jy=1,
-    jz=1
+    jz=1,
+    log_internals=False
 )
 
 drone_kwargs = dict(
     jx=1,
     jy=1,
     jz=1,
-    # mx=1,
-    # my=1,
-    # mz=1,
     g = gravity,
     mass = drone_mass,
     A=A
 )
 
-controler = drone_models.DroneController(**controler_kwargs)
+controller = drone_models.DroneController(**controler_kwargs)
 drone = drone_models.Drone(**drone_kwargs)
-controled_drone = drone_models.ControledDrone(controler, drone)
+controled_drone = drone_models.ControledDrone(controller, drone)
 res = solve_ivp(controled_drone, t_span=time_range, y0=initial_states, max_step=1e-2)
 
 # Saving output
@@ -81,6 +76,10 @@ exec_time = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
 filename = 'drone_sim_out.csv'# f'{exec_time}_drone_sim_out.npz'
 sim_out = np.concatenate((res.t.reshape(1,-1), res.y),axis=0).T
 sim_out = pd.DataFrame(sim_out,columns=['t']+drone_models.states_names)
+ctrl_internals = controller.compute(sim_out['t'].values, sim_out[drone_models.states_names].values)
+for key, value in ctrl_internals.items():
+    if key != 't':
+        sim_out[key] = value
 sim_out.to_csv(filename)
 
 print('End')

@@ -28,9 +28,9 @@ class PI(LinearStateSpaceSystem,Controller):
 
 class FeedbackbLinearization(Controller):
 
-    def __init__(self, ref: Callable[[np.float64, np.ndarray[np.float64], Any], np.ndarray[np.float64]], 
+    def __init__(self, ref: Callable[[np.float64, np.ndarray, Any], np.ndarray], 
         gains: npt.ArrayLike, 
-        linearize: Callable[[np.float64, np.ndarray[np.float64], np.ndarray[np.float64], Any], np.ndarray[np.float64]], **kwargs):
+        linearize: Callable[[np.float64, np.ndarray, np.ndarray, Any], np.ndarray], **kwargs):
         self.__dict__ = kwargs
         self.kwargs = kwargs
         is_callable(ref)
@@ -39,7 +39,7 @@ class FeedbackbLinearization(Controller):
         is_callable(linearize)
         self.linearize = linearize
     
-    def output(self, t: Number, states: npt.ArrayLike) -> np.ndarray[np.float64]:
+    def output(self, t: Number, states: npt.ArrayLike) -> np.ndarray:
         states = np.array(states, dtype=np.float64)
         t=np.float64(t)
         ref = self.ref(t, states, **self.kwargs)
