@@ -5,7 +5,7 @@ from scipy.integrate import solve_ivp
 from datetime import datetime
 
 gravity = 10
-drone_mass = 0.01
+drone_mass = 1
 time_range = (0,10)     # Seconds
 phi0 = 0
 dphi0 = 0
@@ -33,7 +33,11 @@ A = np.array([
 
 controler_kwargs = dict(
     ref_x = lambda t: t**0,
+    ref_dx = lambda t: t-t,
+    ref_ddx = lambda t: t-t,
     ref_y = lambda t: t**0,
+    ref_dy = lambda t: t-t,
+    ref_ddy = lambda t: t-t,
     ref_z = lambda t: t**0,
     ref_dz = lambda t: t-t,
     ref_ddz = lambda t: t-t,
@@ -45,7 +49,7 @@ controler_kwargs = dict(
     kp_phi = 1,
     kd_phi = 2,
     kp_theta = 1,
-    kd_theta = 1,
+    kd_theta = 2,
     kp_psi = 1,
     kd_psi = 1,
     g = gravity,
@@ -54,7 +58,7 @@ controler_kwargs = dict(
     jx=1,
     jy=1,
     jz=1,
-    log_internals=False
+    log_internals=True
 )
 
 drone_kwargs = dict(
@@ -81,5 +85,8 @@ for key, value in ctrl_internals.items():
     if key != 't':
         sim_out[key] = value
 sim_out.to_csv(filename)
+
+internals_df = pd.DataFrame.from_dict(controller.internals)
+internals_df.to_csv('internals_' + filename)
 
 print('End')

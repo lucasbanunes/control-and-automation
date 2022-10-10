@@ -14,7 +14,8 @@ states_names = ['phi','dphi','theta','dtheta','psi','dpsi','x','dx','y','dy','z'
 
 class DroneController(Controller):
 
-    def __init__(self, ref_x: Callable[[Number],Number], ref_y: Callable[[Number],Number], 
+    def __init__(self, ref_x: Callable[[Number],Number], ref_dx: Callable[[Number],Number], ref_ddx: Callable[[Number],Number],
+        ref_y: Callable[[Number],Number], ref_dy: Callable[[Number],Number], ref_ddy: Callable[[Number],Number], 
         ref_z: Callable[[Number],Number], ref_dz: Callable[[Number],Number], ref_ddz: Callable[[Number],Number], 
         ref_psi: Callable[[Number],Number], ref_dpsi: Callable[[Number],Number], ref_ddpsi: Callable[[Number],Number], 
         kp_z: Number, kd_z: Number, kp_phi:Number, kd_phi:Number, kp_theta:Number, kd_theta:Number, kp_psi:Number, kd_psi:Number,
@@ -74,8 +75,16 @@ class DroneController(Controller):
         # References
         is_callable(ref_x)
         self.ref_x = ref_x
+        is_callable(ref_dx)
+        self.ref_dx = ref_dx
+        is_callable(ref_ddx)
+        self.ref_ddx = ref_ddx
         is_callable(ref_y)
         self.ref_y = ref_y
+        is_callable(ref_dy)
+        self.ref_dy = ref_dy
+        is_callable(ref_ddy)
+        self.ref_ddy = ref_ddy
         is_callable(ref_z)
         self.ref_z = ref_z
         is_callable(ref_dz)
@@ -140,9 +149,9 @@ class DroneController(Controller):
         # phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         
         if xs.ndim==1:
-            phi, dphi, theta, dtheta, psi, dpsi, _, _, _, _, z, dz = xs
+            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         elif xs.ndim==2:
-            phi, dphi, theta, dtheta, psi, dpsi, _, _, _, _, z, dz = xs.T
+            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs.T
         else:
             raise ValueError('xs must be a vector or a matrix')
         
@@ -150,7 +159,11 @@ class DroneController(Controller):
         ref_dz = self.ref_dz(t)
         ref_ddz = self.ref_ddz(t)
         ref_x = self.ref_x(t)
+        ref_dx = self.ref_dx(t)
+        ref_ddx = self.ref_ddx(t)
         ref_y = self.ref_y(t)
+        ref_dy = self.ref_dy(t)
+        ref_ddy = self.ref_ddy(t)
         ref_psi = self.ref_psi(t)
         ref_dpsi = self.ref_dpsi(t)
         ref_ddpsi = self.ref_dpsi(t)
@@ -158,19 +171,20 @@ class DroneController(Controller):
         ez = ref_z - z
         dez = ref_dz - dz
         u_z = self.kp_z*ez + self.kd_z*dez + ref_ddz
+        print(f'Phi {phi}, theta {theta}')
         f = (u_z+self.g)*self.mass/(np.cos(phi)*np.cos(theta))
 
         # Roll, pitch, yaw
         # Computing remaining refs
-        ref_phi = self.ref_phi(ref_x, ref_y, ref_psi, f, self.mass)
-        ref_dphi = self.ref_dphi(ref_x, ref_y, ref_psi, f, self.mass)
-        ref_ddphi = self.ref_ddphi(ref_x, ref_y, ref_psi, f, self.mass)
+        ref_phi = self.ref_phi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
+        ref_dphi = self.ref_dphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
+        ref_ddphi = self.ref_ddphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
         e_phi = ref_phi-phi
         de_phi = ref_dphi-dphi
 
-        ref_theta = self.ref_theta(ref_x, ref_y, ref_psi, ref_phi, f, self.mass)
-        ref_dtheta = self.ref_dtheta(ref_x, ref_y, ref_psi, f, ref_phi, self.mass)
-        ref_ddtheta = self.ref_ddtheta(ref_x, ref_y, ref_psi, f, ref_phi, self.mass)
+        ref_theta = self.ref_theta(ref_ddx, ref_ddy, ref_psi, ref_phi, f, self.mass)
+        ref_dtheta = self.ref_dtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
+        ref_ddtheta = self.ref_ddtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
         e_theta = ref_theta-theta
         de_theta = ref_dtheta-dtheta
 
@@ -194,13 +208,16 @@ class DroneController(Controller):
         else:
             res = dict(t=t,
                     ref_z=ref_z, ref_dz=ref_dz, ref_ddz=ref_ddz, 
-                    ref_x=ref_x, ref_y=ref_y, 
+                    ref_x=ref_x, ref_dx=ref_dx, ref_ddx=ref_ddx, 
+                    ref_y=ref_y, ref_dy=ref_dy, ref_ddy=ref_ddy,
                     ref_psi=ref_psi, ref_dpsi=ref_dpsi, ref_ddpsi=ref_ddpsi,
                     ref_theta=ref_theta, ref_dtheta=ref_dtheta, ref_ddtheta=ref_ddtheta, 
                     ref_phi=ref_phi, ref_dphi=ref_dphi, ref_ddphi=ref_ddphi, 
                     u_z=u_z, u_phi=u_phi, u_theta=u_theta, u_psi=u_psi, 
-                    f=f, m_x=m_x, m_y=m_y, m_z=m_z, 
-                    f1=fi[0], f2=fi[1], f3=fi[2], f4=fi[3])
+                    f=f, m_x=m_x, m_y=m_y, m_z=m_z,
+                    f1=fi[0], f2=fi[1], f3=fi[2], f4=fi[3],
+                    psi=psi, theta=theta, phi=phi, x=x, y=y, z=z,
+                    dpsi=dpsi, dtheta=dtheta, dphi=dphi, dx=dx, dy=dy, dz=dz)
             return res
 
 
@@ -208,7 +225,7 @@ class DroneController(Controller):
         if self.log_internals:
             res = self.compute(t, xs, output_only=False)
             self._log_values(**res)
-            fi = np.array(res['f1'], res['f2'], res['f3'], res['f4'])
+            fi = np.array([res['f1'], res['f2'], res['f3'], res['f4']])
         else:
             fi = self.compute(t, xs, output_only=True)
         
@@ -309,17 +326,18 @@ class ControledDrone(DynamicSystem):
     def output(self, t, xs):
         return np.array(xs)
 
-def ref_phi(ref_x: Number, ref_y: Number, ref_psi:Number, f: Number, mass:Number) -> anp.float64:
+def ref_phi(ref_ddx: Number, ref_ddy: Number, ref_psi:Number, f: Number, mass:Number) -> anp.float64:
     cpsi = anp.cos(ref_psi)
     spsi = anp.sin(ref_psi)
-    ref_phi = -anp.arcsin((mass/f)*(cpsi*ref_x + spsi*ref_y))
+    ref_phi = -anp.arcsin((mass/f)*(-spsi*ref_ddx + cpsi*ref_ddy))
     return ref_phi
 
-def ref_theta(ref_x: Number, ref_y: Number, ref_psi: Number, ref_phi: Number, f: Number, mass:Number) -> anp.float64:
+def ref_theta(ref_ddx: Number, ref_ddy: Number, ref_psi: Number, ref_phi: Number, f: Number, mass:Number) -> anp.float64:
     cpsi = anp.cos(ref_psi)
     spsi = anp.sin(ref_psi)
     cphi = anp.cos(ref_phi)
-    ref_theta = (1/cphi)*anp.arcsin((mass/f)*(-spsi*ref_x + cpsi*ref_y))
+    print(f'Values!: {(cpsi, spsi, cphi, f)}')
+    ref_theta = anp.arcsin((1/cphi)*(mass/f)*(cpsi*ref_ddx + spsi*ref_ddy))
     return ref_theta
 
 
