@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from .models import LinearStateSpaceSystem
-from .utils import is_callable
+from .utils import is_callable, is_instance
 import numpy as np
 import numpy.typing as npt
 from numbers import Number
@@ -17,12 +17,25 @@ class Controller(ABC):
 
 class PI(LinearStateSpaceSystem,Controller):
 
-    def __init__(self, kp, ki):
-        self.kp=kp
-        self.ki=ki
+    def __init__(self, gains: npt.ArrayLike):
+        self.gains = np.array(gains, dtype=np.float64)
+        self.kp, self.ki = self.gains
         super().__init__(A=np.array([[0]]),
                          B=np.array([[1]]),
                          C=np.array([[self.ki]]),
+                         D=np.array([[self.kp]]),
+                         x0=np.array([[0]]))
+
+class PD(LinearStateSpaceSystem,Controller):
+
+    def __init__(self, gains: npt.ArrayLike, tau: Number):
+        is_instance(tau, Number)
+        self.tau = np.float64(tau)
+        self.gains = np.array(gains, dtype=np.float64)
+        self.kp, self.kd = self.gains
+        super().__init__(A=np.array([[-1/self.tau]]),
+                         B=np.array([[1]]),
+                         C=np.array([[self.kd/self.tau]]),
                          D=np.array([[self.kp]]),
                          x0=np.array([[0]]))
 
