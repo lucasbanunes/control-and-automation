@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
-from packages.controllers import Controller
+from packages.controllers import PI, Controller
 from packages.models import DynamicSystem
 from packages.utils import is_callable, is_numeric, is_instance
 from typing import Callable, Union
@@ -10,7 +10,8 @@ from autograd import elementwise_grad as egrad
 import autograd.numpy as anp
 from collections import defaultdict
 
-states_names = ['phi','dphi','theta','dtheta','psi','dpsi','x','dx','y','dy','z','dz']
+states_names = ['phi','dphi','theta','dtheta','psi','dpsi','x','dx','y','dy','z','dz', 
+    'phi_controller_state', 'theta_controller_state']
 
 class DroneController(Controller):
 
@@ -144,14 +145,17 @@ class DroneController(Controller):
         is_instance(log_internals, bool)
         self.log_internals = log_internals
         self.internals = defaultdict(list)
+
+        self.phi_controller = PI(gains=[self.kp_phi, self.kd_phi])
+        self.theta_controller = PI(gains=[self.kp_theta, self.kd_theta])
     
     def compute(self, t: Number, xs: npt.ArrayLike, output_only:bool=False) -> Union[np.ndarray, dict]:
         # phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         
         if xs.ndim==1:
-            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
+            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz, phi_ctrl_state, theta_ctrl_state = xs
         elif xs.ndim==2:
-            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs.T
+            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz, phi_ctrl_state, theta_ctrl_state = xs.T
         else:
             raise ValueError('xs must be a vector or a matrix')
         
@@ -177,24 +181,24 @@ class DroneController(Controller):
         # Roll, pitch, yaw
         # Computing remaining refs
         ref_phi = self.ref_phi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
-        ref_dphi = self.ref_dphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
-        ref_ddphi = self.ref_ddphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
+        # ref_dphi = self.ref_dphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
+        # ref_ddphi = self.ref_ddphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
         e_phi = ref_phi-phi
-        de_phi = ref_dphi-dphi
+        # de_phi = ref_dphi-dphi
 
         ref_theta = self.ref_theta(ref_ddx, ref_ddy, ref_psi, ref_phi, f, self.mass)
-        ref_dtheta = self.ref_dtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
-        ref_ddtheta = self.ref_ddtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
+        # ref_dtheta = self.ref_dtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
+        # ref_ddtheta = self.ref_ddtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
         e_theta = ref_theta-theta
-        de_theta = ref_dtheta-dtheta
+        # de_theta = ref_dtheta-dtheta
 
         e_psi = ref_psi-psi
         de_psi = ref_dpsi-dpsi
 
         # Computing roll, pitch, yaw inputs
-        u_phi = self.kp_phi*e_phi+ self.kd_phi*de_phi + ref_ddphi
-        u_theta = self.kp_theta*e_theta+ self.kd_theta*de_theta + ref_ddtheta
         u_psi = self.kp_psi*e_psi+ self.kd_psi*de_psi + ref_ddpsi
+        u_phi = self.phi_controller.output(t, phi_ctrl_state, e_phi)[0,0]
+        u_theta = self.theta_controller.output(t, theta_ctrl_state, e_theta)[0,0]
 
         m_x = u_phi*self.jx
         m_y = u_theta*self.jy
@@ -204,7 +208,11 @@ class DroneController(Controller):
         fi = np.dot(self.Ainv, f_M)
 
         if output_only:
-            return fi
+            dxs = list()
+            dxs.append(self.phi_controller(t, phi_ctrl_state, e_phi)[0,0])
+            dxs.append(self.theta_controller(t, theta_ctrl_state, e_theta)[0,0])
+            dx = np.array(dxs, dtype=np.float64)
+            return fi, dxs
         else:
             res = dict(t=t,
                     ref_z=ref_z, ref_dz=ref_dz, ref_ddz=ref_ddz, 
@@ -234,6 +242,13 @@ class DroneController(Controller):
     def _log_values(self, **kwargs):
         for key, value in kwargs.items():
             self.internals[key].append(value)
+
+    # def __call__(self, t: Number, xs: npt.ArrayLike) -> np.ndarray:
+    #     dxs = list()
+    #     dxs.append(self.phi_controller(t, xs))
+    #     dxs.append(self.theta_controller(t,xs))
+    #     dx = np.concatenate(dxs, axis=0)
+    #     return dx
         
     
 class Drone(DynamicSystem):
@@ -274,7 +289,7 @@ class Drone(DynamicSystem):
         fi: npt.ArrayLike) -> np.ndarray:
         f, m_x, m_y, m_z = np.dot(self.A, fi)
         f_over_m = f/self.mass
-        phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
+        phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz, _, _ = xs
         sphi = np.sin(phi)
         cphi = np.cos(phi)
         stheta = np.sin(theta)
@@ -312,16 +327,17 @@ class Propeller(DynamicSystem):
 
 class ControledDrone(DynamicSystem):
 
-    def __init__(self, controler: DroneController, drone: Drone) -> None:
-        is_instance(controler, DroneController)
-        self.controler=controler
+    def __init__(self, controller: DroneController, drone: Drone) -> None:
+        is_instance(controller, DroneController)
+        self.controller=controller
         is_instance(drone, Drone)
         self.drone=drone
 
     def __call__(self, t, xs) -> np.ndarray:
-        controler_out = self.controler.output(t, xs)
+        controler_out, controller_dxs = self.controller.output(t, xs)
         drone_dxs = self.drone(t, xs, controler_out)
-        return drone_dxs
+        dxs = np.concatenate([drone_dxs, controller_dxs], axis=0)
+        return dxs
     
     def output(self, t, xs):
         return np.array(xs)

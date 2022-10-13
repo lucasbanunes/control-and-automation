@@ -19,7 +19,7 @@ y0 = 0
 dy0 = 0
 z0 = 0
 dz0 = 0
-initial_states = [phi0, dphi0, theta0, dtheta0, psi0, dpsi0, x0, dx0, y0, dy0, z0, dz0]
+initial_states = [phi0, dphi0, theta0, dtheta0, psi0, dpsi0, x0, dx0, y0, dy0, z0, dz0, 0, 0]
 
 d=1
 ctau=1
@@ -58,7 +58,7 @@ controler_kwargs = dict(
     jx=1,
     jy=1,
     jz=1,
-    log_internals=True
+    log_internals=False
 )
 
 drone_kwargs = dict(
