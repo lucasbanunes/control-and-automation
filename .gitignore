@@ -1,5 +1,6 @@
 #From script
 imgs/
+plots/
 
 #Matlab and simulink
 *.asv
