@@ -20,24 +20,23 @@ class PI(LinearStateSpaceSystem,Controller):
     def __init__(self, gains: npt.ArrayLike):
         self.gains = np.array(gains, dtype=np.float64)
         self.kp, self.ki = self.gains
-        super().__init__(A=np.array([[0]]),
-                         B=np.array([[1]]),
-                         C=np.array([[self.ki]]),
-                         D=np.array([[self.kp]]),
-                         x0=np.array([[0]]))
+        super().__init__(A=np.array(0),
+                         B=np.array(1),
+                         C=np.array(self.ki),
+                         D=np.array(self.kp),
+                         x0=np.array(0))
 
 class PD(LinearStateSpaceSystem,Controller):
 
     def __init__(self, gains: npt.ArrayLike, tau: Number):
-        is_instance(tau, Number)
         self.tau = np.float64(tau)
         self.gains = np.array(gains, dtype=np.float64)
         self.kp, self.kd = self.gains
-        super().__init__(A=np.array([[-1/self.tau]]),
-                         B=np.array([[1]]),
-                         C=np.array([[self.kd/self.tau]]),
-                         D=np.array([[self.kp]]),
-                         x0=np.array([[0]]))
+        super().__init__(A=np.array(-1/self.tau),
+                         B=np.array(1),
+                         C=np.array(self.kd/self.tau),
+                         D=np.array(self.kp),
+                         x0=np.array(0))
 
 class FeedbackbLinearization(Controller):
 

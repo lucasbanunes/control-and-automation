@@ -172,33 +172,33 @@ class DroneController(Controller):
         ref_dpsi = self.ref_dpsi(t)
         ref_ddpsi = self.ref_dpsi(t)
 
-        ez = ref_z - z
-        dez = ref_dz - dz
-        u_z = self.kp_z*ez + self.kd_z*dez + ref_ddz
-        print(f'Phi {phi}, theta {theta}')
+        e_z = ref_z - z
+        de_z = ref_dz - dz
+        u_z = self.kp_z*e_z + self.kd_z*de_z + ref_ddz
+        # print(f'Phi {phi}, theta {theta}')
         f = (u_z+self.g)*self.mass/(np.cos(phi)*np.cos(theta))
 
         # Roll, pitch, yaw
         # Computing remaining refs
         ref_phi = self.ref_phi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
-        # ref_dphi = self.ref_dphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
-        # ref_ddphi = self.ref_ddphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
+        ref_dphi = self.ref_dphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
+        ref_ddphi = self.ref_ddphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
         e_phi = ref_phi-phi
-        # de_phi = ref_dphi-dphi
+        de_phi = ref_dphi-dphi
 
         ref_theta = self.ref_theta(ref_ddx, ref_ddy, ref_psi, ref_phi, f, self.mass)
-        # ref_dtheta = self.ref_dtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
-        # ref_ddtheta = self.ref_ddtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
+        ref_dtheta = self.ref_dtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
+        ref_ddtheta = self.ref_ddtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
         e_theta = ref_theta-theta
-        # de_theta = ref_dtheta-dtheta
+        de_theta = ref_dtheta-dtheta
 
         e_psi = ref_psi-psi
         de_psi = ref_dpsi-dpsi
 
         # Computing roll, pitch, yaw inputs
         u_psi = self.kp_psi*e_psi+ self.kd_psi*de_psi + ref_ddpsi
-        u_phi = self.phi_controller.output(t, phi_ctrl_state, e_phi)[0,0]
-        u_theta = self.theta_controller.output(t, theta_ctrl_state, e_theta)[0,0]
+        u_phi = self.phi_controller.output(t, phi_ctrl_state, e_phi)
+        u_theta = self.theta_controller.output(t, theta_ctrl_state, e_theta)
 
         m_x = u_phi*self.jx
         m_y = u_theta*self.jy
@@ -209,12 +209,12 @@ class DroneController(Controller):
 
         if output_only:
             dxs = list()
-            dxs.append(self.phi_controller(t, phi_ctrl_state, e_phi)[0,0])
-            dxs.append(self.theta_controller(t, theta_ctrl_state, e_theta)[0,0])
+            dxs.append(self.phi_controller(t, phi_ctrl_state, e_phi))
+            dxs.append(self.theta_controller(t, theta_ctrl_state, e_theta))
             dx = np.array(dxs, dtype=np.float64)
             return fi, dxs
         else:
-            res = dict(t=t,
+            res = dict(t=t, e_phi=e_phi, e_theta=e_theta, e_z=e_z,
                     ref_z=ref_z, ref_dz=ref_dz, ref_ddz=ref_ddz, 
                     ref_x=ref_x, ref_dx=ref_dx, ref_ddx=ref_ddx, 
                     ref_y=ref_y, ref_dy=ref_dy, ref_ddy=ref_ddy,
@@ -352,7 +352,7 @@ def ref_theta(ref_ddx: Number, ref_ddy: Number, ref_psi: Number, ref_phi: Number
     cpsi = anp.cos(ref_psi)
     spsi = anp.sin(ref_psi)
     cphi = anp.cos(ref_phi)
-    print(f'Values!: {(cpsi, spsi, cphi, f)}')
+    # print(f'Values!: {(cpsi, spsi, cphi, f)}')
     ref_theta = anp.arcsin((1/cphi)*(mass/f)*(cpsi*ref_ddx + spsi*ref_ddy))
     return ref_theta
 
