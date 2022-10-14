@@ -41,9 +41,16 @@ controler_kwargs = dict(
     ref_z = lambda t: t**0,
     ref_dz = lambda t: t-t,
     ref_ddz = lambda t: t-t,
+    # ref_z = lambda t: np.sin(3*t)*2 + 1,
+    # ref_dz = lambda t: np.cos(3*t)*6,
+    # ref_ddz = lambda t: -np.sin(3*t)*18,
     ref_psi = lambda t: t-t,
     ref_dpsi = lambda t: t-t,
     ref_ddpsi = lambda t: t-t,
+    kp_x = 1,
+    kd_x= 1,
+    kp_y = 1,
+    kd_y= 1,
     kp_z = 1,
     kd_z= 1,
     kp_phi = 1,
@@ -74,6 +81,8 @@ controller = drone_models.DroneController(**controler_kwargs)
 drone = drone_models.Drone(**drone_kwargs)
 controled_drone = drone_models.ControledDrone(controller, drone)
 res = solve_ivp(controled_drone, t_span=time_range, y0=initial_states, max_step=1e-2)
+
+print(f'Simulation outputted status {res.status}. "{res.message}"')
 
 # Saving output
 exec_time = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')

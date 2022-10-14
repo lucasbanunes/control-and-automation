@@ -15,6 +15,18 @@ class Controller(ABC):
     def output(self):
         pass
 
+class P(LinearStateSpaceSystem,Controller):
+
+    def __init__(self, gains: npt.ArrayLike):
+        self.gains = np.array(gains, dtype=np.float64)
+        self.kp = self.gains[0]
+        super().__init__(A=np.array(0),
+                         B=np.array(0),
+                         C=np.array(0),
+                         D=np.array(self.kp),
+                         x0=np.array(0))
+
+
 class PI(LinearStateSpaceSystem,Controller):
 
     def __init__(self, gains: npt.ArrayLike):

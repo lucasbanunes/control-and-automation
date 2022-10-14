@@ -1,13 +1,13 @@
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
-from packages.controllers import PI, Controller
+from packages.controllers import PI, Controller, P
 from packages.models import DynamicSystem
 from packages.utils import is_callable, is_numeric, is_instance
 from typing import Callable, Union
 from numbers import Number
-from autograd import elementwise_grad as egrad
-import autograd.numpy as anp
+# from autograd import elementwise_grad as egrad
+# import autograd.numpy as anp
 from collections import defaultdict
 
 states_names = ['phi','dphi','theta','dtheta','psi','dpsi','x','dx','y','dy','z','dz', 
@@ -19,7 +19,8 @@ class DroneController(Controller):
         ref_y: Callable[[Number],Number], ref_dy: Callable[[Number],Number], ref_ddy: Callable[[Number],Number], 
         ref_z: Callable[[Number],Number], ref_dz: Callable[[Number],Number], ref_ddz: Callable[[Number],Number], 
         ref_psi: Callable[[Number],Number], ref_dpsi: Callable[[Number],Number], ref_ddpsi: Callable[[Number],Number], 
-        kp_z: Number, kd_z: Number, kp_phi:Number, kd_phi:Number, kp_theta:Number, kd_theta:Number, kp_psi:Number, kd_psi:Number,
+        kp_x: Number, kd_x: Number, kp_y: Number, kd_y: Number, kp_z: Number, kd_z: Number, 
+        kp_phi:Number, kd_phi:Number, kp_theta:Number, kd_theta:Number, kp_psi:Number, kd_psi:Number,
         A: npt.ArrayLike, jx: Number, jy: Number, jz: Number,
         g: Number, mass: Number, log_internals:bool=False):
         """
@@ -100,6 +101,14 @@ class DroneController(Controller):
         self.ref_ddpsi = ref_ddpsi
         
         # Gains
+        is_numeric(kp_x)
+        self.kp_x = np.float64(kp_x)
+        is_numeric(kd_x)
+        self.kd_x = np.float64(kd_x)
+        is_numeric(kp_y)
+        self.kp_y = np.float64(kp_y)
+        is_numeric(kd_y)
+        self.kd_y = np.float64(kd_y)
         is_numeric(kp_z)
         self.kp_z = np.float64(kp_z)
         is_numeric(kd_z)
@@ -136,18 +145,14 @@ class DroneController(Controller):
 
         self.ref_phi = ref_phi
         self.ref_theta = ref_theta
-        self.ref_dphi = ref_dphi
-        self.ref_dtheta = ref_dtheta
-        self.ref_ddphi = ref_ddphi
-        self.ref_ddtheta = ref_ddtheta
 
         # Configs
         is_instance(log_internals, bool)
         self.log_internals = log_internals
         self.internals = defaultdict(list)
 
-        self.phi_controller = PI(gains=[self.kp_phi, self.kd_phi])
-        self.theta_controller = PI(gains=[self.kp_theta, self.kd_theta])
+        self.phi_controller = P(gains=[self.kp_phi])
+        self.theta_controller = P(gains=[self.kp_theta])
     
     def compute(self, t: Number, xs: npt.ArrayLike, output_only:bool=False) -> Union[np.ndarray, dict]:
         # phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
@@ -172,33 +177,37 @@ class DroneController(Controller):
         ref_dpsi = self.ref_dpsi(t)
         ref_ddpsi = self.ref_dpsi(t)
 
+        # Z control
         e_z = ref_z - z
         de_z = ref_dz - dz
         u_z = self.kp_z*e_z + self.kd_z*de_z + ref_ddz
-        # print(f'Phi {phi}, theta {theta}')
         f = (u_z+self.g)*self.mass/(np.cos(phi)*np.cos(theta))
+
+        # X control
+        e_x = ref_x - x
+        e_dx = ref_dx - dx
+        u_x = self.kp_x*e_x + self.kd_x*e_dx + ref_ddx
+
+        # Y control
+        e_y = ref_y - y
+        e_dy = ref_dy - dy
+        u_y = self.kp_y*e_y + self.kd_y*e_dy + ref_ddy
 
         # Roll, pitch, yaw
         # Computing remaining refs
-        ref_phi = self.ref_phi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
-        ref_dphi = self.ref_dphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
-        ref_ddphi = self.ref_ddphi(ref_ddx, ref_ddy, ref_psi, f, self.mass)
+        ref_phi = self.ref_phi(u_x, u_y, ref_psi, f, self.mass)
         e_phi = ref_phi-phi
-        de_phi = ref_dphi-dphi
+        u_phi = self.kp_phi*e_phi
+        u_phi = self.phi_controller.output(t, phi_ctrl_state, e_phi)
 
-        ref_theta = self.ref_theta(ref_ddx, ref_ddy, ref_psi, ref_phi, f, self.mass)
-        ref_dtheta = self.ref_dtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
-        ref_ddtheta = self.ref_ddtheta(ref_ddx, ref_ddy, ref_psi, f, ref_phi, self.mass)
+        ref_theta = self.ref_theta(u_x, u_y, ref_psi, ref_phi, f, self.mass)
         e_theta = ref_theta-theta
-        de_theta = ref_dtheta-dtheta
+        u_theta = self.kp_theta*e_theta
+        u_theta = self.theta_controller.output(t, theta_ctrl_state, e_theta)
 
         e_psi = ref_psi-psi
         de_psi = ref_dpsi-dpsi
-
-        # Computing roll, pitch, yaw inputs
         u_psi = self.kp_psi*e_psi+ self.kd_psi*de_psi + ref_ddpsi
-        u_phi = self.phi_controller.output(t, phi_ctrl_state, e_phi)
-        u_theta = self.theta_controller.output(t, theta_ctrl_state, e_theta)
 
         m_x = u_phi*self.jx
         m_y = u_theta*self.jy
@@ -214,14 +223,15 @@ class DroneController(Controller):
             dx = np.array(dxs, dtype=np.float64)
             return fi, dxs
         else:
-            res = dict(t=t, e_phi=e_phi, e_theta=e_theta, e_z=e_z,
+            res = dict(t=t, e_phi=e_phi, e_theta=e_theta, e_psi=e_psi,
+                    e_z=e_z, e_y=e_y, e_x=e_x,
                     ref_z=ref_z, ref_dz=ref_dz, ref_ddz=ref_ddz, 
                     ref_x=ref_x, ref_dx=ref_dx, ref_ddx=ref_ddx, 
                     ref_y=ref_y, ref_dy=ref_dy, ref_ddy=ref_ddy,
                     ref_psi=ref_psi, ref_dpsi=ref_dpsi, ref_ddpsi=ref_ddpsi,
-                    ref_theta=ref_theta, ref_dtheta=ref_dtheta, ref_ddtheta=ref_ddtheta, 
-                    ref_phi=ref_phi, ref_dphi=ref_dphi, ref_ddphi=ref_ddphi, 
-                    u_z=u_z, u_phi=u_phi, u_theta=u_theta, u_psi=u_psi, 
+                    ref_theta=ref_theta,ref_phi=ref_phi, 
+                    u_z=u_z, u_y=u_y, u_x=u_x, 
+                    u_phi=u_phi, u_theta=u_theta, u_psi=u_psi, 
                     f=f, m_x=m_x, m_y=m_y, m_z=m_z,
                     f1=fi[0], f2=fi[1], f3=fi[2], f4=fi[3],
                     psi=psi, theta=theta, phi=phi, x=x, y=y, z=z,
@@ -241,15 +251,7 @@ class DroneController(Controller):
     
     def _log_values(self, **kwargs):
         for key, value in kwargs.items():
-            self.internals[key].append(value)
-
-    # def __call__(self, t: Number, xs: npt.ArrayLike) -> np.ndarray:
-    #     dxs = list()
-    #     dxs.append(self.phi_controller(t, xs))
-    #     dxs.append(self.theta_controller(t,xs))
-    #     dx = np.concatenate(dxs, axis=0)
-    #     return dx
-        
+            self.internals[key].append(value)       
     
 class Drone(DynamicSystem):
 
@@ -342,22 +344,15 @@ class ControledDrone(DynamicSystem):
     def output(self, t, xs):
         return np.array(xs)
 
-def ref_phi(ref_ddx: Number, ref_ddy: Number, ref_psi:Number, f: Number, mass:Number) -> anp.float64:
-    cpsi = anp.cos(ref_psi)
-    spsi = anp.sin(ref_psi)
-    ref_phi = -anp.arcsin((mass/f)*(-spsi*ref_ddx + cpsi*ref_ddy))
+def ref_phi(ref_ddx: Number, ref_ddy: Number, ref_psi:Number, f: Number, mass:Number) -> np.float64:
+    cpsi = np.cos(ref_psi)
+    spsi = np.sin(ref_psi)
+    ref_phi = -np.arcsin((mass/f)*(-spsi*ref_ddx + cpsi*ref_ddy))
     return ref_phi
 
-def ref_theta(ref_ddx: Number, ref_ddy: Number, ref_psi: Number, ref_phi: Number, f: Number, mass:Number) -> anp.float64:
-    cpsi = anp.cos(ref_psi)
-    spsi = anp.sin(ref_psi)
-    cphi = anp.cos(ref_phi)
-    # print(f'Values!: {(cpsi, spsi, cphi, f)}')
-    ref_theta = anp.arcsin((1/cphi)*(mass/f)*(cpsi*ref_ddx + spsi*ref_ddy))
+def ref_theta(ref_ddx: Number, ref_ddy: Number, ref_psi: Number, ref_phi: Number, f: Number, mass:Number) -> np.float64:
+    cpsi = np.cos(ref_psi)
+    spsi = np.sin(ref_psi)
+    cphi = np.cos(ref_phi)
+    ref_theta = np.arcsin((1/cphi)*(mass/f)*(cpsi*ref_ddx + spsi*ref_ddy))
     return ref_theta
-
-
-ref_dphi = egrad(ref_phi)
-ref_ddphi = egrad(ref_dphi)
-ref_dtheta = egrad(ref_theta)
-ref_ddtheta = egrad(ref_dtheta)
