@@ -6,14 +6,24 @@ import numpy.typing as npt
 from numbers import Number
 from typing import Callable, Any, Dict
 
-class Controller(DynamicSystem):
-    pass
+def get_ctrl_from_config(config_dict: Dict[str, Any]):
+    locals_dict = locals()
+    controllers = [locals_dict[ctrl_class](**ctrl_config) 
+        for ctrl_class, ctrl_config in config_dict.items()]
+    return controllers
 
-class LinearController(LinearStateSpaceSystem,Controller):
-    def output(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike) -> np.ndarray:
+class Controller(DynamicSystem):
+    def output(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike, **kwargs) -> np.ndarray:
         return super().output(t, x, refs-x)
 
-    def dx(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike) -> np.ndarray:
+    def dx(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike, **kwargs) -> np.ndarray:
+        return super().dx(t, x, refs-x)
+
+class LinearController(LinearStateSpaceSystem,Controller):
+    def output(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike, **kwargs) -> np.ndarray:
+        return super().output(t, x, refs-x)
+
+    def dx(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike, **kwargs) -> np.ndarray:
         return super().dx(t, x, refs-x)
 
 
@@ -27,12 +37,6 @@ class PCtrl(LinearController):
                          C=np.array([[0]]),
                          D=np.array([[self.kp]]),
                          x0=np.array([[0]]))
-
-    def output(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike) -> np.ndarray:
-        return super().output(t, x, refs-x)
-
-    def dx(self, t: Number, x: npt.ArrayLike, refs: npt.ArrayLike) -> np.ndarray:
-        return super().dx(t, x, refs-x)
 
 class PICtrl(LinearController):
 
@@ -61,14 +65,14 @@ class ExplicitCtrl(Controller):
     def __init__(self, gains:npt.ArrayLike):
         self.gains = np.array(gains, dtype=np.float64)
     
-    def output(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **extra) -> np.ndarray:
+    def output(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **kwargs) -> np.ndarray:
         states = np.array(states, dtype=np.float64)
         refs = np.array(refs, dtype=np.float64)
         t=np.float64(t)
         errors = refs[:-1]-states
         u = np.dot(self.gains, errors) + refs[-1]
     
-    def dx(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **extra) -> np.ndarray:
+    def dx(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **kwargs) -> np.ndarray:
         return np.array([0], dtype=np.float64)
 
 class FbLinearizationCtrl(Controller):
@@ -77,18 +81,22 @@ class FbLinearizationCtrl(Controller):
         self.__dict__ = kwargs
         self.kwargs = kwargs
         self.gains = np.array(gains, dtype=np.float64)
-        is_instance(controller, Controller)
-        self.controller = controller
+        if isinstance(controller, Controller):
+            self.controller = controller
+        elif isinstance(controller, dict):
+            self.controller = get_ctrl_from_config(controller)
+        else:
+            raise TypeError('controller can only be a config dict or a Controller instance')
     
-    def output(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **extra) -> np.ndarray:
-        u = self.controller.output(t, refs, states, **extra)
-        y = self.linearize(t, u, states, **self.kwargs, **extra)
+    def output(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **kwargs) -> np.ndarray:
+        u = self.controller.output(t, refs, states, **kwargs)
+        y = self.linearize(t, u, states, **self.kwargs, **kwargs)
         return y
     
-    def dx(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **extra) -> np.ndarray:
-        return self.controller.dx(t, refs, states, **extra)
+    def dx(self, t: Number, refs:npt.ArrayLike, states: npt.ArrayLike, **kwargs) -> np.ndarray:
+        return self.controller.dx(t, refs, states, **kwargs)
     
     @abstractmethod
-    def linearize(self, t: Number, u: np.ndarray, states: np.ndarray) -> np.ndarray:
+    def linearize(self, t: Number, u: np.ndarray, states: np.ndarray, **kwargs) -> np.ndarray:
         pass
         

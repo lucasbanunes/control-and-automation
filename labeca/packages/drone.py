@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
-from packages.controllers import PICtrl, PDCtrl, PCtrl, Controller, FbLinearizationCtrl, ExplicitCtrl
+from packages.controllers import get_ctrl_from_config
 from packages.models import DynamicSystem
 from packages.utils import is_callable, is_numeric, is_instance
+from packages.typing import CtrlLike
 from typing import Callable, Union
 from numbers import Number
 # from autograd import elementwise_grad as egrad
@@ -47,10 +48,10 @@ class DroneController(Controller):
         ref_y: Callable[[Number],Number], ref_dy: Callable[[Number],Number], ref_ddy: Callable[[Number],Number], 
         ref_z: Callable[[Number],Number], ref_dz: Callable[[Number],Number], ref_ddz: Callable[[Number],Number], 
         ref_psi: Callable[[Number],Number], ref_dpsi: Callable[[Number],Number], ref_ddpsi: Callable[[Number],Number], 
-        kp_x: Number, kd_x: Number, kp_y: Number, kd_y: Number, kp_z: Number, kd_z: Number, 
-        kp_phi:Number, kd_phi:Number, kp_theta:Number, kd_theta:Number, kp_psi:Number, kd_psi:Number,
-        A: npt.ArrayLike, jx: Number, jy: Number, jz: Number,
-        g: Number, mass: Number, log_internals:bool=False):
+        A: npt.ArrayLike, jx: Number, jy: Number, jz: Number, g: Number, mass: Number, 
+        x_controller: CtrlLike, y_controller: CtrlLike, z_controller: CtrlLike,
+        psi_controller: CtrlLike, phi_controller: CtrlLike, theta_controller: CtrlLike, 
+        log_internals:bool=False):
         """
         Parameters
         ------------
@@ -128,49 +129,9 @@ class DroneController(Controller):
         is_callable(ref_ddpsi)
         self.ref_ddpsi = ref_ddpsi
         
-        # Gains
-        is_numeric(kp_x)
-        self.kp_x = np.float64(kp_x)
-        is_numeric(kd_x)
-        self.kd_x = np.float64(kd_x)
-        is_numeric(kp_y)
-        self.kp_y = np.float64(kp_y)
-        is_numeric(kd_y)
-        self.kd_y = np.float64(kd_y)
-        is_numeric(kp_z)
-        self.kp_z = np.float64(kp_z)
-        is_numeric(kd_z)
-        self.kd_z = np.float64(kd_z)
-        is_numeric(kp_phi)
-        self.kp_phi = np.float64(kp_phi)
-        is_numeric(kd_phi)
-        self.kd_phi = np.float64(kd_phi)
-        is_numeric(kp_phi)
-        self.kp_phi = np.float64(kp_phi)
-        is_numeric(kd_phi)
-        self.kd_phi = np.float64(kd_phi)
-        is_numeric(kp_theta)
-        self.kp_theta = np.float64(kp_theta)
-        is_numeric(kd_theta)
-        self.kd_theta = np.float64(kd_theta)
-        is_numeric(kp_psi)
-        self.kp_psi = np.float64(kp_psi)
-        is_numeric(kd_psi)
-        self.kd_psi = np.float64(kd_psi)
-        
-        is_numeric(g)
-        self.g = np.float64(g)
-        is_numeric(mass)
-        self.mass = np.float64(mass)
         A = np.array(A, dtype=np.float64)
         self.Ainv = np.linalg.inv(A)
-        is_numeric(jx)
-        self.jx = np.float64(jx)
-        is_numeric(jy)
-        self.jy = np.float64(jy)
-        is_numeric(jz)
-        self.jz = np.float64(jz)
-
+        
         self.ref_phi = ref_phi
         self.ref_theta = ref_theta
 
@@ -179,13 +140,13 @@ class DroneController(Controller):
         self.log_internals = log_internals
         self.internals = defaultdict(list)
 
-        self.x_controller = ExplicitCtrl(gains=[self.kp_x, self.kd_x])
-        self.y_controller = ExplicitCtrl(gains=[self.kp_y, self.kd_y])
-        self.psi_controller = ExplicitCtrl(gains=[self.kp_psi, self.kd_psi])
-        self.z_controller = ZFbLinearizationCtrl(gains=[self.kp_z, self.kd_z], g=self.g, mass=self.mass)
-        self.phi_controller = PCtrl(gains=[self.kp_phi])
-        self.theta_controller = PCtrl(gains=[self.kp_theta])
-    
+        self.x_controller = get_ctrl_from_config(x_controller)
+        self.y_controller = get_ctrl_from_config(y_controller)
+        self.z_controller = get_ctrl_from_config(z_controller)
+        self.phi_controller = get_ctrl_from_config(phi_controller)
+        self.theta_controller = get_ctrl_from_config(theta_controller)
+        self.psi_controller = get_ctrl_from_config(psi_controller)
+
     def compute(self, t: Number, xs: npt.ArrayLike, output_only:bool=False) -> Union[np.ndarray, dict]:
         # phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         
