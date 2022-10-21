@@ -86,7 +86,7 @@ print(f'Simulation outputted status {res.status}. "{res.message}"')
 
 # Saving output
 exec_time = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-filename = 'drone_sim_out.csv'# f'{exec_time}_drone_sim_out.npz'
+filename = 'test_drone_sim_out.csv'# f'{exec_time}_drone_sim_out.npz'
 sim_out = np.concatenate((res.t.reshape(1,-1), res.y),axis=0).T
 sim_out = pd.DataFrame(sim_out,columns=['t']+drone_models.states_names)
 ctrl_internals = controller.compute(sim_out['t'].values, sim_out[drone_models.states_names].values)
@@ -96,6 +96,6 @@ for key, value in ctrl_internals.items():
 sim_out.to_csv(filename)
 
 internals_df = pd.DataFrame.from_dict(controller.internals)
-internals_df.to_csv('internals_' + filename)
+internals_df.to_csv('test_internals_' + filename)
 
 print('End')
