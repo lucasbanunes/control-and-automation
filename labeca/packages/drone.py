@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
-from packages.controllers import get_ctrl_from_config
+from packages.controllers import get_ctrl_from_config, FbLinearizationCtrl, Controller
 from packages.models import DynamicSystem
 from packages.utils import is_callable, is_numeric, is_instance
 from packages.typing import CtrlLike
@@ -166,9 +166,9 @@ class DroneController(Controller):
         ref_dpsi = self.ref_dpsi(t)
         ref_ddpsi = self.ref_ddpsi(t)
 
-        f = self.z_controller.output(t, refs=[ref_z, ref_dz, ref_ddz], states=[z, dz])
         u_x = self.x_controller.output(t, refs=[ref_x, ref_dx, ref_ddx], states=[x, dx])
         u_y = self.y_controller.output(t, refs=[ref_y, ref_dy, ref_ddy], states=[y, dy])
+        f = self.z_controller.output(t, refs=[ref_z, ref_dz, ref_ddz], states=[z, dz])
         m_z = self.psi_controller.output(t, refs=[ref_psi, ref_dpsi, ref_ddpsi], states=[psi, dpsi])
 
         ref_phi = self.ref_phi(u_x, u_y, ref_psi, f, self.mass)
@@ -189,9 +189,13 @@ class DroneController(Controller):
 
         if output_only:
             controller_dxs = list()
-            controller_dxs.append(self.phi_controller.dx(t, phi_ctrl_state, e_phi)[0])
-            controller_dxs.append(self.theta_controller.dx(t, theta_ctrl_state, e_theta)[0])
-            controller_dxs = np.array(controller_dxs)
+            controller_dxs.append(self.x_controller.dx(t, refs=[ref_x, ref_dx, ref_ddx], states=[x, dx]))
+            controller_dxs.append(self.y_controller.dx(t, refs=[ref_y, ref_dy, ref_ddy], states=[y, dy]))
+            controller_dxs.append(self.z_controller.dx(t, refs=[ref_z, ref_dz, ref_ddz], states=[z, dz]))
+            controller_dxs.append(self.phi_controller.dx(t, refs=[ref_phi], states=[phi]))
+            controller_dxs.append(self.theta_controller.dx(t,refs=[ref_theta], states=[theta]))
+            controller_dxs.append(self.psi_controller.output(t, refs=[ref_psi, ref_dpsi, ref_ddpsi], states=[psi, dpsi]))
+            controller_dxs = np.concatenate(controller_dxs, axis=0)
             return fi, controller_dxs
         else:
             res = dict(t=t, e_phi=e_phi, e_theta=e_theta, e_psi=e_psi,
