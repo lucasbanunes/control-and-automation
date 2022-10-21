@@ -15,7 +15,7 @@ class Controller(ABC):
     def output(self):
         pass
 
-class P(LinearStateSpaceSystem,Controller):
+class PController(LinearStateSpaceSystem,Controller):
 
     def __init__(self, gains: npt.ArrayLike):
         self.gains = np.array(gains, dtype=np.float64)
@@ -27,7 +27,7 @@ class P(LinearStateSpaceSystem,Controller):
                          x0=np.array(0))
 
 
-class PI(LinearStateSpaceSystem,Controller):
+class PIController(LinearStateSpaceSystem,Controller):
 
     def __init__(self, gains: npt.ArrayLike):
         self.gains = np.array(gains, dtype=np.float64)
@@ -38,7 +38,7 @@ class PI(LinearStateSpaceSystem,Controller):
                          D=np.array(self.kp),
                          x0=np.array(0))
 
-class PD(LinearStateSpaceSystem,Controller):
+class PDController(LinearStateSpaceSystem,Controller):
 
     def __init__(self, gains: npt.ArrayLike, tau: Number):
         self.tau = np.float64(tau)

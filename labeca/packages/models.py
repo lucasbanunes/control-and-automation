@@ -9,8 +9,11 @@ class DynamicSystem(ABC):
     def __init__(self):
         pass
     
+    def __call__(self, *args, **kwargs) -> np.ndarray:
+        return self.dx(*args, **kwargs)
+
     @abstractmethod
-    def __call__(self) -> np.ndarray:
+    def dx(self) -> np.ndarray:
         pass
     
     @abstractmethod
@@ -28,10 +31,11 @@ class LinearStateSpaceSystem(DynamicSystem):
         self.D=np.array(D, np.float64)
         self.x0=np.array(x0, np.float64)
 
-    def __call__(self, t: Number, x: npt.ArrayLike, 
+    def dx(self, t: Number, x: npt.ArrayLike, 
         u: npt.ArrayLike) -> np.ndarray:
-        return np.dot(self.A, x)+np.dot(self.B, u)
+        dx = (np.dot(self.A, x)+np.dot(self.B, u)).flatten()
+        return dx
     
-    def output(self, t: Number, x: npt.ArrayLike, 
-        u: npt.ArrayLike) -> np.ndarray:
-        return np.dot(self.C, x)+np.dot(self.D, u)
+    def output(self, t: Number, x: npt.ArrayLike, u: npt.ArrayLike) -> np.ndarray:
+        out = (np.dot(self.C, x)+np.dot(self.D, u)).flatten()
+        return out
