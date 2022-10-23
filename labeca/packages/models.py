@@ -31,8 +31,7 @@ class LinearStateSpaceSystem(DynamicSystem):
         self.D=np.array(D, np.float64)
         self.x0=np.array(x0, np.float64)
 
-    def dx(self, t: Number, x: npt.ArrayLike, 
-        u: npt.ArrayLike) -> np.ndarray:
+    def dx(self, t: Number, x: npt.ArrayLike, u: npt.ArrayLike) -> np.ndarray:
         dx = (np.dot(self.A, x)+np.dot(self.B, u))
         return dx
     
