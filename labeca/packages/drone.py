@@ -1,19 +1,21 @@
 import numpy as np
 import pandas as pd
 import numpy.typing as npt
+from numpy.typing import ArrayLike
 from packages.controllers import get_ctrl_from_config, FbLinearizationCtrl, Controller
 from packages.models import DynamicSystem
 from packages.utils import is_callable, is_numeric, is_instance
 from packages.typing import CtrlLike
-from typing import Callable, Union
+from typing import Callable, Union, Dict, Any
 from numbers import Number
 # from autograd import elementwise_grad as egrad
 # import autograd.numpy as anp
 from collections import defaultdict
 
-states_names = ['phi','dphi','theta','dtheta','psi','dpsi','x','dx','y','dy','z','dz', 
-    'phi_controller_state', 'theta_controller_state']
-states_idxs = [0,1,2,3,4,5,6,7,8,9,10,11,12,13]
+states_names = ['phi', 'dphi', 'theta', 'dtheta', 'psi', 'dpsi', 'x', 'dx', 'y', 'dy', 'z', 'dz',
+        'x_ctrl_states', 'y_ctrl_states', 'z_ctrl_states',
+        'phi_ctrl_states', 'theta_ctrl_states', 'psi_ctrl_states']
+states_idxs = np.arange(len(states_names))
 names_idxs = {key: value for key, value in zip(states_names, states_idxs)}
 
 # def parse_states(states: np.ndarray):
@@ -31,14 +33,22 @@ names_idxs = {key: value for key, value in zip(states_names, states_idxs)}
 #         phi_ctrl_states, theta_ctrl_states
 
 class ZFbLinearizationCtrl(FbLinearizationCtrl):
-    def linearize(self, t: Number, u: np.ndarray, states: np.ndarray) -> Number:
-        phi = states[names_idxs['phi']]
-        theta = states[names_idxs['theta']]
+
+    def __init__(self, gains: ArrayLike, controller: CtrlLike, g: Number, mass: Number):
+        super().__init__(gains, controller)
+
+    def linearize(self, t: Number, u: np.ndarray, input_x: ArrayLike, x: ArrayLike, refs: ArrayLike, **kwargs) -> Number:
+        phi = x[names_idxs['phi']]
+        theta = x[names_idxs['theta']]
         output = (u+self.g)*self.mass/(np.cos(phi)*np.cos(theta))
         return output
 
 class PsiFbLinearizationCtrl(FbLinearizationCtrl):
-    def linearize(self, t: Number, u: np.ndarray, states: np.ndarray) -> Number:
+
+    def __init__(self, gains: ArrayLike, controller: CtrlLike, jz: Number):
+        super().__init__(gains, controller)
+    
+    def linearize(self, t: Number, u: np.ndarray, input_x: ArrayLike, x: ArrayLike, refs: ArrayLike, **kwargs) -> Number:
         output = u*self.jz
         return output
 
@@ -49,8 +59,8 @@ class DroneController(Controller):
         ref_z: Callable[[Number],Number], ref_dz: Callable[[Number],Number], ref_ddz: Callable[[Number],Number], 
         ref_psi: Callable[[Number],Number], ref_dpsi: Callable[[Number],Number], ref_ddpsi: Callable[[Number],Number], 
         A: npt.ArrayLike, jx: Number, jy: Number, jz: Number, g: Number, mass: Number, 
-        x_controller: CtrlLike, y_controller: CtrlLike, z_controller: CtrlLike,
-        psi_controller: CtrlLike, phi_controller: CtrlLike, theta_controller: CtrlLike, 
+        x_controller: Dict[str, Any], y_controller: Dict[str, Any], z_controller: Dict[str, Any],
+        psi_controller: Dict[str, Any], phi_controller: Dict[str, Any], theta_controller: Dict[str, Any], 
         log_internals:bool=False):
         """
         Parameters
@@ -71,22 +81,6 @@ class DroneController(Controller):
             Callable that recieves time and returns desired dpsi value
         ref_ddpsi: callable
             Callable that recieves time and returns desired ddpsi value
-        kp_z: Number
-            Proportional gain for z control
-        kd_z: Number
-            Derivative gain for z control
-        kp_phi: Number
-            Proportional gain for z control
-        kd_phi: Number
-            Derivative gain for z control
-        kp_theta: Number
-            Proportional gain for z control
-        kd_theta: Number
-            Derivative gain for z control
-        kp_psi: Number
-            Proportional gain for z control
-        kd_psi: Number
-            Derivative gain for z control
         g: Number
             Gravity
         mass: Number
@@ -140,18 +134,19 @@ class DroneController(Controller):
         self.log_internals = log_internals
         self.internals = defaultdict(list)
 
-        self.x_controller = get_ctrl_from_config(x_controller)
-        self.y_controller = get_ctrl_from_config(y_controller)
-        self.z_controller = get_ctrl_from_config(z_controller)
-        self.phi_controller = get_ctrl_from_config(phi_controller)
-        self.theta_controller = get_ctrl_from_config(theta_controller)
-        self.psi_controller = get_ctrl_from_config(psi_controller)
+        self.x_controller = get_ctrl_from_config(x_controller)[0]
+        self.y_controller = get_ctrl_from_config(y_controller)[0]
+        self.z_controller = get_ctrl_from_config(z_controller)[0]
+        self.phi_controller = get_ctrl_from_config(phi_controller)[0]
+        self.theta_controller = get_ctrl_from_config(theta_controller)[0]
+        self.psi_controller = get_ctrl_from_config(psi_controller)[0]
 
     def compute(self, t: Number, xs: npt.ArrayLike, output_only:bool=False) -> Union[np.ndarray, dict]:
         # phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         
         phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz, \
-            phi_ctrl_state, theta_ctrl_state = xs 
+        x_ctrl_states, y_ctrl_states, z_ctrl_states, \
+        phi_ctrl_states, theta_ctrl_states, psi_ctrl_states = xs 
         
         ref_z = self.ref_z(t)
         ref_dz = self.ref_dz(t)
@@ -166,16 +161,17 @@ class DroneController(Controller):
         ref_dpsi = self.ref_dpsi(t)
         ref_ddpsi = self.ref_ddpsi(t)
 
-        u_x = self.x_controller.output(t, refs=[ref_x, ref_dx, ref_ddx], states=[x, dx])
-        u_y = self.y_controller.output(t, refs=[ref_y, ref_dy, ref_ddy], states=[y, dy])
-        f = self.z_controller.output(t, refs=[ref_z, ref_dz, ref_ddz], states=[z, dz])
-        m_z = self.psi_controller.output(t, refs=[ref_psi, ref_dpsi, ref_ddpsi], states=[psi, dpsi])
+        u_x = self.x_controller.output(t, refs=[ref_x, ref_dx, ref_ddx], input_x=[x, dx], x=[x_ctrl_states])
+        u_y = self.y_controller.output(t, refs=[ref_y, ref_dy, ref_ddy], input_x=[y, dy], x=[x_ctrl_states])
+        f = self.z_controller.output(t, refs=[ref_z, ref_dz, ref_ddz], input_x=[z, dz], x=[x_ctrl_states])
+        m_z = self.psi_controller.output(t, refs=[ref_psi, ref_dpsi, ref_ddpsi], input_x=[psi, dpsi],
+            x=[psi_ctrl_states])
 
         ref_phi = self.ref_phi(u_x, u_y, ref_psi, f, self.mass)
-        u_phi = self.phi_controller.output(t, refs=[ref_phi], states=[phi])
+        u_phi = self.phi_controller.output(t, refs=[ref_phi], input_x=[phi], x=[phi_ctrl_states])
 
         ref_theta = self.ref_theta(u_x, u_y, ref_psi, ref_phi, f, self.mass)
-        u_theta = self.theta_controller.output(t,refs=[ref_theta], states=[theta])
+        u_theta = self.theta_controller.output(t,refs=[ref_theta], input_x=[theta], x=[theta_ctrl_states])
 
         m_x = u_phi*self.jx
         m_y = u_theta*self.jy
@@ -189,13 +185,20 @@ class DroneController(Controller):
 
         if output_only:
             controller_dxs = list()
-            controller_dxs.append(self.x_controller.dx(t, refs=[ref_x, ref_dx, ref_ddx], states=[x, dx]))
-            controller_dxs.append(self.y_controller.dx(t, refs=[ref_y, ref_dy, ref_ddy], states=[y, dy]))
-            controller_dxs.append(self.z_controller.dx(t, refs=[ref_z, ref_dz, ref_ddz], states=[z, dz]))
-            controller_dxs.append(self.phi_controller.dx(t, refs=[ref_phi], states=[phi]))
-            controller_dxs.append(self.theta_controller.dx(t,refs=[ref_theta], states=[theta]))
-            controller_dxs.append(self.psi_controller.output(t, refs=[ref_psi, ref_dpsi, ref_ddpsi], states=[psi, dpsi]))
+            controller_dxs.append(self.x_controller.dx(t, x=x_ctrl_states,
+                refs=[ref_x, ref_dx, ref_ddx], input_x=[x, dx]))
+            controller_dxs.append(self.y_controller.dx(t, x=y_ctrl_states,
+                refs=[ref_y, ref_dy, ref_ddy], input_x=[y, dy]))
+            controller_dxs.append(self.z_controller.dx(t, x=z_ctrl_states,
+                refs=[ref_z, ref_dz, ref_ddz], input_x=[z, dz]))
+            controller_dxs.append(self.phi_controller.dx(t, x=phi_ctrl_states,
+                refs=[ref_phi], input_x=[phi]))
+            controller_dxs.append(self.theta_controller.dx(t, x=theta_ctrl_states,
+                refs=[ref_theta], input_x=[theta]))
+            controller_dxs.append(self.psi_controller.output(t, x=psi_ctrl_states, 
+                refs=[ref_psi, ref_dpsi, ref_ddpsi], input_x=[psi, dpsi]))
             controller_dxs = np.concatenate(controller_dxs, axis=0)
+
             return fi, controller_dxs
         else:
             res = dict(t=t, e_phi=e_phi, e_theta=e_theta, e_psi=e_psi,
