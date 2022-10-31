@@ -10,8 +10,7 @@ from numbers import Number
 # import autograd.numpy as anp
 from collections import defaultdict
 
-states_names = ['phi','dphi','theta','dtheta','psi','dpsi','x','dx','y','dy','z','dz', 
-    'phi_controller_state', 'theta_controller_state']
+states_names = ['phi','dphi','theta','dtheta','psi','dpsi','x','dx','y','dy','z','dz']
 
 class DroneController(Controller):
 
@@ -19,6 +18,7 @@ class DroneController(Controller):
         ref_y: Callable[[Number],Number], ref_dy: Callable[[Number],Number], ref_ddy: Callable[[Number],Number], 
         ref_z: Callable[[Number],Number], ref_dz: Callable[[Number],Number], ref_ddz: Callable[[Number],Number], 
         ref_psi: Callable[[Number],Number], ref_dpsi: Callable[[Number],Number], ref_ddpsi: Callable[[Number],Number], 
+        ref_ddpsi: Callable[[Number],Number], ref_ddpsi: Callable[[Number],Number], 
         kp_x: Number, kd_x: Number, kp_y: Number, kd_y: Number, kp_z: Number, kd_z: Number, 
         kp_phi:Number, kd_phi:Number, kp_theta:Number, kd_theta:Number, kp_psi:Number, kd_psi:Number,
         A: npt.ArrayLike, jx: Number, jy: Number, jz: Number,
@@ -158,11 +158,9 @@ class DroneController(Controller):
         # phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         
         if xs.ndim==1:
-            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz, \
-                phi_ctrl_state, theta_ctrl_state = xs
+            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         elif xs.ndim==2:
-            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz, \
-                phi_ctrl_state, theta_ctrl_state = xs.T
+            phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs.T
         else:
             raise ValueError('xs must be a vector or a matrix')
         
@@ -198,14 +196,12 @@ class DroneController(Controller):
         # phi control
         ref_phi = self.ref_phi(u_x, u_y, ref_psi, f, self.mass)
         e_phi = ref_phi-phi
-        u_phi = self.kp_phi*e_phi
-        u_phi = self.phi_controller.output(t, phi_ctrl_state, e_phi)
+        u_phi = self.kp_phi*e_phi - self.kd_phi*dphi
 
         # theta control
         ref_theta = self.ref_theta(u_x, u_y, ref_psi, ref_phi, f, self.mass)
         e_theta = ref_theta-theta
-        u_theta = self.kp_theta*e_theta
-        u_theta = self.theta_controller.output(t, theta_ctrl_state, e_theta)
+        u_theta = self.kp_theta*e_theta - self.kd_theta*dtheta
 
         # psi control
         e_psi = ref_psi-psi
@@ -216,18 +212,16 @@ class DroneController(Controller):
         m_y = u_theta*self.jy
         m_z = u_psi*self.jz
         if xs.ndim == 1:
-            f_M = np.array([f, m_x[0], m_y[0], m_z])
+            f_M = np.array([f, m_x, m_y, m_z])
             fi = np.dot(self.Ainv, f_M)
         elif xs.ndim ==2:
             f_M = np.column_stack((f, m_x, m_y, m_z))
             fi = np.dot(self.Ainv, f_M.T)
 
         if output_only:
-            controller_dxs = list()
-            controller_dxs.append(self.phi_controller.dx(t, phi_ctrl_state, e_phi)[0])
-            controller_dxs.append(self.theta_controller.dx(t, theta_ctrl_state, e_theta)[0])
-            controller_dxs = np.array(controller_dxs)
-            return fi, controller_dxs
+            # controller_dxs = list()
+            # controller_dxs = np.array(controller_dxs)
+            return f_M
         else:
             res = dict(t=t, e_phi=e_phi, e_theta=e_theta, e_psi=e_psi,
                     e_z=e_z, e_y=e_y, e_x=e_x,
@@ -248,11 +242,12 @@ class DroneController(Controller):
         if self.log_internals:
             res = self.compute(t, xs, output_only=False)
             self._log_values(**res)
-            fi = np.array([res['f1'], res['f2'], res['f3'], res['f4']])
+            # fi = np.array([res['f1'], res['f2'], res['f3'], res['f4']])
+            fi = np.array([res['f'], res['m_x'], res['m_y'], res['m_z']])
         else:
-            fi,controller_dxs = self.compute(t, xs, output_only=True)
+            fi = self.compute(t, xs, output_only=True)
         
-        return fi, controller_dxs
+        return fi
     
     def _log_values(self, **kwargs):
         for key, value in kwargs.items():
@@ -293,9 +288,9 @@ class Drone(DynamicSystem):
         self.A = np.array(A, dtype=np.float64)
     
     def dx(self, t: Number, xs: npt.ArrayLike, fi: npt.ArrayLike) -> np.ndarray:
-        f, m_x, m_y, m_z = np.dot(self.A, fi)
+        f, m_x, m_y, m_z = fi # np.dot(self.A, fi)
         f_over_m = f/self.mass
-        phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz, _, _ = xs
+        phi, dphi, theta, dtheta, psi, dpsi, x, dx, y, dy, z, dz = xs
         sphi = np.sin(phi)
         cphi = np.cos(phi)
         stheta = np.sin(theta)
@@ -340,10 +335,10 @@ class ControledDrone(DynamicSystem):
         self.drone=drone
 
     def dx(self, t, xs) -> np.ndarray:
-        controler_fi, controller_dxs = self.controller.output(t, xs)
+        controler_fi = self.controller.output(t, xs)
         drone_dxs = self.drone(t, xs, controler_fi)
-        dxs = np.concatenate([drone_dxs, controller_dxs], axis=0)
-        return dxs
+        # dxs = np.concatenate([drone_dxs, controller_dxs], axis=0)
+        return drone_dxs
     
     def output(self, t, xs):
         return np.array(xs)

@@ -4,6 +4,10 @@ import packages.drone as drone_models
 from scipy.integrate import solve_ivp
 from datetime import datetime
 
+
+# Atentar a intensidade dos torques
+# Fixar as referências de phi e theta para ver se está funcionando
+
 gravity = 10
 drone_mass = 1
 time_range = (0,10)     # Seconds
@@ -19,7 +23,7 @@ y0 = 0
 dy0 = 0
 z0 = 0
 dz0 = 0
-initial_states = [phi0, dphi0, theta0, dtheta0, psi0, dpsi0, x0, dx0, y0, dy0, z0, dz0, 0, 0]
+initial_states = [phi0, dphi0, theta0, dtheta0, psi0, dpsi0, x0, dx0, y0, dy0, z0, dz0]
 
 d=1
 ctau=1
